@@ -42,6 +42,8 @@ type StreamControlStateConfig struct {
 	MaxMessageStreams int
 }
 
+const maxInt = int(^uint(0) >> 1)
+
 func (cb *StreamControlStateConfig) normalize() *StreamControlStateConfig {
 	c := StreamControlStateConfig(*cb)
 
@@ -56,7 +58,7 @@ func (cb *StreamControlStateConfig) normalize() *StreamControlStateConfig {
 	}
 
 	if c.MaxChunkStreams == 0 {
-		c.MaxChunkStreams = math.MaxUint32
+		c.MaxChunkStreams = maxInt
 	}
 
 	// ack
@@ -82,7 +84,7 @@ func (cb *StreamControlStateConfig) normalize() *StreamControlStateConfig {
 	// message
 
 	if c.MaxMessageStreams == 0 {
-		c.MaxMessageStreams = math.MaxUint32
+		c.MaxMessageStreams = maxInt
 	}
 
 	if c.MaxMessageSize == 0 {
