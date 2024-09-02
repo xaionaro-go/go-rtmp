@@ -8,6 +8,8 @@
 package rtmp
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/yutopp/go-rtmp/internal"
@@ -43,6 +45,7 @@ func (h *serverControlNotConnectedHandler) onData(
 }
 
 func (h *serverControlNotConnectedHandler) onCommand(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	cmdMsg *message.CommandMessage,
@@ -58,7 +61,7 @@ func (h *serverControlNotConnectedHandler) onCommand(
 				result := h.newConnectErrorResult()
 
 				l.Infof("Connect(Error): ResponseBody = %#v, Err = %+v", result, err)
-				if err1 := h.sh.stream.ReplyConnect(chunkStreamID, timestamp, result); err1 != nil {
+				if err1 := h.sh.stream.ReplyConnect(ctx, chunkStreamID, timestamp, result); err1 != nil {
 					err = errors.Wrapf(err, "Failed to reply response: Err = %+v", err1)
 				}
 			}
@@ -69,7 +72,7 @@ func (h *serverControlNotConnectedHandler) onCommand(
 		}
 
 		l.Infof("Set win ack size: Size = %+v", h.sh.stream.streamer().SelfState().AckWindowSize())
-		if err := h.sh.stream.WriteWinAckSize(ctrlMsgChunkStreamID, timestamp, &message.WinAckSize{
+		if err := h.sh.stream.WriteWinAckSize(ctx, ctrlMsgChunkStreamID, timestamp, &message.WinAckSize{
 			Size: h.sh.stream.streamer().SelfState().AckWindowSize(),
 		}); err != nil {
 			return err
@@ -79,7 +82,7 @@ func (h *serverControlNotConnectedHandler) onCommand(
 			h.sh.stream.streamer().SelfState().BandwidthWindowSize(),
 			h.sh.stream.streamer().SelfState().BandwidthLimitType(),
 		)
-		if err := h.sh.stream.WriteSetPeerBandwidth(ctrlMsgChunkStreamID, timestamp, &message.SetPeerBandwidth{
+		if err := h.sh.stream.WriteSetPeerBandwidth(ctx, ctrlMsgChunkStreamID, timestamp, &message.SetPeerBandwidth{
 			Size:  h.sh.stream.streamer().SelfState().BandwidthWindowSize(),
 			Limit: h.sh.stream.streamer().SelfState().BandwidthLimitType(),
 		}); err != nil {
@@ -87,7 +90,7 @@ func (h *serverControlNotConnectedHandler) onCommand(
 		}
 
 		l.Infof("Stream Begin: ID = %d", h.sh.stream.streamID)
-		if err := h.sh.stream.WriteUserCtrl(ctrlMsgChunkStreamID, timestamp, &message.UserCtrl{
+		if err := h.sh.stream.WriteUserCtrl(ctx, ctrlMsgChunkStreamID, timestamp, &message.UserCtrl{
 			Event: &message.UserCtrlEventStreamBegin{
 				StreamID: h.sh.stream.streamID,
 			},
@@ -98,7 +101,7 @@ func (h *serverControlNotConnectedHandler) onCommand(
 		result := h.newConnectSuccessResult()
 
 		l.Infof("Connect: ResponseBody = %#v", result)
-		if err := h.sh.stream.ReplyConnect(chunkStreamID, timestamp, result); err != nil {
+		if err := h.sh.stream.ReplyConnect(ctx, chunkStreamID, timestamp, result); err != nil {
 			return err
 		}
 		l.Info("Connected")

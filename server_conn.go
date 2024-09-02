@@ -8,6 +8,8 @@
 package rtmp
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/yutopp/go-rtmp/handshake"
@@ -24,7 +26,9 @@ func newServerConn(conn *Conn) *serverConn {
 	}
 }
 
-func (sc *serverConn) Serve() error {
+func (sc *serverConn) Serve(
+	ctx context.Context,
+) error {
 	if err := handshake.HandshakeWithClient(sc.conn.rwc, sc.conn.rwc, &handshake.Config{
 		SkipHandshakeVerification: sc.conn.config.SkipHandshakeVerification,
 	}); err != nil {
@@ -43,7 +47,7 @@ func (sc *serverConn) Serve() error {
 		sc.conn.handler.OnServe(sc.conn)
 	}
 
-	return sc.conn.handleMessageLoop()
+	return sc.conn.handleMessageLoop(ctx)
 }
 
 func (sc *serverConn) Close() error {

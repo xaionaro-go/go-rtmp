@@ -10,7 +10,6 @@ package rtmp
 import (
 	"bytes"
 	"context"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -49,19 +48,35 @@ func (s *Stream) StreamID() uint32 {
 	return s.streamID
 }
 
-func (s *Stream) WriteWinAckSize(chunkStreamID int, timestamp uint32, msg *message.WinAckSize) error {
-	return s.Write(chunkStreamID, timestamp, msg)
+func (s *Stream) WriteWinAckSize(
+	ctx context.Context,
+	chunkStreamID int,
+	timestamp uint32,
+	msg *message.WinAckSize,
+) error {
+	return s.Write(ctx, chunkStreamID, timestamp, msg)
 }
 
-func (s *Stream) WriteSetPeerBandwidth(chunkStreamID int, timestamp uint32, msg *message.SetPeerBandwidth) error {
-	return s.Write(chunkStreamID, timestamp, msg)
+func (s *Stream) WriteSetPeerBandwidth(
+	ctx context.Context,
+	chunkStreamID int,
+	timestamp uint32,
+	msg *message.SetPeerBandwidth,
+) error {
+	return s.Write(ctx, chunkStreamID, timestamp, msg)
 }
 
-func (s *Stream) WriteUserCtrl(chunkStreamID int, timestamp uint32, msg *message.UserCtrl) error {
-	return s.Write(chunkStreamID, timestamp, msg)
+func (s *Stream) WriteUserCtrl(
+	ctx context.Context,
+	chunkStreamID int,
+	timestamp uint32,
+	msg *message.UserCtrl,
+) error {
+	return s.Write(ctx, chunkStreamID, timestamp, msg)
 }
 
 func (s *Stream) Connect(
+	ctx context.Context,
 	body *message.NetConnectionConnect,
 ) (*message.NetConnectionConnectResult, error) {
 	transactionID := int64(1) // Always 1 (7.2.1.1)
@@ -76,6 +91,7 @@ func (s *Stream) Connect(
 
 	chunkStreamID := 3 // TODO: fix
 	err = s.writeCommandMessage(
+		ctx,
 		chunkStreamID, 0, // Timestamp is 0
 		"connect",
 		transactionID,
@@ -113,6 +129,7 @@ func (s *Stream) Connect(
 }
 
 func (s *Stream) ReplyConnect(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	body *message.NetConnectionConnectResult,
@@ -126,6 +143,7 @@ func (s *Stream) ReplyConnect(
 	}
 
 	return s.writeCommandMessage(
+		ctx,
 		chunkStreamID, timestamp,
 		commandName,
 		1, // 7.2.1.2, flow.6
@@ -133,12 +151,16 @@ func (s *Stream) ReplyConnect(
 	)
 }
 
-func (s *Stream) CreateStream(body *message.NetConnectionCreateStream, chunkSize uint32) (*message.NetConnectionCreateStreamResult, error) {
+func (s *Stream) CreateStream(
+	ctx context.Context,
+	body *message.NetConnectionCreateStream,
+	chunkSize uint32,
+) (*message.NetConnectionCreateStreamResult, error) {
 	oldChunkSize := s.conn.streamer.selfState.chunkSize
 	if chunkSize > 0 && chunkSize != oldChunkSize {
 		logrus.Infof("Changing chunkSize %d->%d", oldChunkSize, chunkSize)
 		s.conn.streamer.selfState.chunkSize = chunkSize
-		err := s.WriteSetChunkSize(chunkSize)
+		err := s.WriteSetChunkSize(ctx, chunkSize)
 		if err != nil {
 			return nil, err
 		}
@@ -156,6 +178,7 @@ func (s *Stream) CreateStream(body *message.NetConnectionCreateStream, chunkSize
 
 	chunkStreamID := 3 // TODO: fix
 	err = s.writeCommandMessage(
+		ctx,
 		chunkStreamID, 0, // TODO: fix, Timestamp is 0
 		"createStream",
 		transactionID,
@@ -167,7 +190,7 @@ func (s *Stream) CreateStream(body *message.NetConnectionCreateStream, chunkSize
 
 	// TODO: support timeout
 	// TODO: check result
-	timeoutCtx := context.TODO()
+	timeoutCtx := ctx
 	select {
 	case <-timeoutCtx.Done():
 		return nil, timeoutCtx.Err()
@@ -193,10 +216,14 @@ func (s *Stream) CreateStream(body *message.NetConnectionCreateStream, chunkSize
 	//return nil, errors.New("Failed to get result")
 }
 
-func (s *Stream) DeleteStream(body *message.NetStreamDeleteStream) error {
+func (s *Stream) DeleteStream(
+	ctx context.Context,
+	body *message.NetStreamDeleteStream,
+) error {
 	chunkStreamID := 3 // TODO: fix
 
 	return s.writeCommandMessage(
+		ctx,
 		chunkStreamID,
 		0,
 		"deleteStream",
@@ -206,6 +233,7 @@ func (s *Stream) DeleteStream(body *message.NetStreamDeleteStream) error {
 }
 
 func (s *Stream) ReplyCreateStream(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	transactionID int64,
@@ -220,6 +248,7 @@ func (s *Stream) ReplyCreateStream(
 	}
 
 	return s.writeCommandMessage(
+		ctx,
 		chunkStreamID, timestamp,
 		commandName,
 		transactionID,
@@ -228,6 +257,7 @@ func (s *Stream) ReplyCreateStream(
 }
 
 func (s *Stream) Publish(
+	ctx context.Context,
 	body *message.NetStreamPublish,
 ) error {
 	if body == nil {
@@ -236,6 +266,7 @@ func (s *Stream) Publish(
 
 	chunkStreamID := 3 // TODO: fix
 	return s.writeCommandMessage(
+		ctx,
 		chunkStreamID, 0, // TODO: fix, Timestamp is 0
 		"publish",
 		int64(0), // Always 0, 7.2.2.6
@@ -244,11 +275,13 @@ func (s *Stream) Publish(
 }
 
 func (s *Stream) NotifyStatus(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	body *message.NetStreamOnStatus,
 ) error {
 	return s.writeCommandMessage(
+		ctx,
 		chunkStreamID, timestamp,
 		"onStatus",
 		0, // 7.2.2
@@ -266,6 +299,7 @@ func (s *Stream) assumeClosed() {
 }
 
 func (s *Stream) writeCommandMessage(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	commandName string,
@@ -278,7 +312,7 @@ func (s *Stream) writeCommandMessage(
 		return err
 	}
 
-	return s.Write(chunkStreamID, timestamp, &message.CommandMessage{
+	return s.Write(ctx, chunkStreamID, timestamp, &message.CommandMessage{
 		CommandName:   commandName,
 		TransactionID: transactionID,
 		Encoding:      s.encTy,
@@ -287,6 +321,7 @@ func (s *Stream) writeCommandMessage(
 }
 
 func (s *Stream) WriteDataMessage(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	name string,
@@ -298,14 +333,17 @@ func (s *Stream) WriteDataMessage(
 		return err
 	}
 
-	return s.Write(chunkStreamID, timestamp, &message.DataMessage{
+	return s.Write(ctx, chunkStreamID, timestamp, &message.DataMessage{
 		Name:     name,
 		Encoding: message.EncodingTypeAMF0,
 		Body:     buf,
 	})
 }
 
-func (s *Stream) WriteSetChunkSize(chunkSize uint32) error {
+func (s *Stream) WriteSetChunkSize(
+	ctx context.Context,
+	chunkSize uint32,
+) error {
 	if chunkSize < 1 {
 		return errors.New("chunksize < 1")
 	}
@@ -315,19 +353,26 @@ func (s *Stream) WriteSetChunkSize(chunkSize uint32) error {
 	msg := &message.SetChunkSize{ChunkSize: chunkSize}
 	chunkStreamID := 2       // Correct according to 6.2
 	var timeStamp uint32 = 0 // TODO. Send updated time
-	return s.Write(chunkStreamID, timeStamp, msg)
+	return s.Write(ctx, chunkStreamID, timeStamp, msg)
 }
 
-func (s *Stream) Write(chunkStreamID int, timestamp uint32, msg message.Message) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second) // TODO: Fix 5s
-	defer cancel()
-
+func (s *Stream) Write(
+	ctx context.Context,
+	chunkStreamID int,
+	timestamp uint32,
+	msg message.Message,
+) error {
 	s.cmsg.Message = msg
 	return s.streamer().Write(ctx, chunkStreamID, timestamp, &s.cmsg)
 }
 
-func (s *Stream) handle(chunkStreamID int, timestamp uint32, msg message.Message) error {
-	return s.handler.Handle(chunkStreamID, timestamp, msg)
+func (s *Stream) handle(
+	ctx context.Context,
+	chunkStreamID int,
+	timestamp uint32,
+	msg message.Message,
+) error {
+	return s.handler.Handle(ctx, chunkStreamID, timestamp, msg)
 }
 
 func (s *Stream) streams() *streams {

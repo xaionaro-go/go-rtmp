@@ -8,12 +8,15 @@
 package rtmp
 
 import (
+	"context"
 	"testing"
 
 	"github.com/yutopp/go-rtmp/message"
 )
 
 func BenchmarkHandlePublisherVideoMessage(b *testing.B) {
+	ctx := context.Background()
+
 	rwc := &rwcMock{}
 	c := newConn(rwc, nil)
 
@@ -26,6 +29,6 @@ func BenchmarkHandlePublisherVideoMessage(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = s.handle(chunkStreamID, timestamp, msg)
+		_ = s.handle(ctx, chunkStreamID, timestamp, msg)
 	}
 }

@@ -8,6 +8,8 @@
 package rtmp
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/yutopp/go-rtmp/internal"
@@ -43,6 +45,7 @@ func (h *serverControlConnectedHandler) onData(
 }
 
 func (h *serverControlConnectedHandler) onCommand(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	cmdMsg *message.CommandMessage,
@@ -59,7 +62,7 @@ func (h *serverControlConnectedHandler) onCommand(
 				result := h.newCreateStreamErrorResult()
 
 				l.Infof("CreateStream(Error): ResponseBody = %#v, Err = %+v", result, err)
-				if err1 := h.sh.stream.ReplyCreateStream(chunkStreamID, timestamp, tID, result); err1 != nil {
+				if err1 := h.sh.stream.ReplyCreateStream(ctx, chunkStreamID, timestamp, tID, result); err1 != nil {
 					err = errors.Wrapf(err, "Failed to reply response: Err = %+v", err1)
 				}
 			}
@@ -75,7 +78,7 @@ func (h *serverControlConnectedHandler) onCommand(
 			l.Errorf("Failed to create stream: Err = %+v", err)
 
 			result := h.newCreateStreamErrorResult()
-			if err1 := h.sh.stream.ReplyCreateStream(chunkStreamID, timestamp, tID, result); err1 != nil {
+			if err1 := h.sh.stream.ReplyCreateStream(ctx, chunkStreamID, timestamp, tID, result); err1 != nil {
 				return errors.Wrapf(err, "Failed to reply response: Err = %+v", err1)
 			}
 
@@ -84,7 +87,7 @@ func (h *serverControlConnectedHandler) onCommand(
 		newStream.handler.ChangeState(streamStateServerInactive)
 
 		result := h.newCreateStreamSuccessResult(newStream.streamID)
-		if err := h.sh.stream.ReplyCreateStream(chunkStreamID, timestamp, tID, result); err != nil {
+		if err := h.sh.stream.ReplyCreateStream(ctx, chunkStreamID, timestamp, tID, result); err != nil {
 			_ = h.sh.stream.streams().Delete(newStream.streamID) // TODO: error handling
 			return err
 		}

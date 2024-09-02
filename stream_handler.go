@@ -8,6 +8,7 @@
 package rtmp
 
 import (
+	"context"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -70,7 +71,12 @@ func newStreamHandler(s *Stream) *streamHandler {
 	}
 }
 
-func (h *streamHandler) Handle(chunkStreamID int, timestamp uint32, msg message.Message) error {
+func (h *streamHandler) Handle(
+	ctx context.Context,
+	chunkStreamID int,
+	timestamp uint32,
+	msg message.Message,
+) error {
 	l := h.Logger()
 
 	switch msg := msg.(type) {
@@ -78,7 +84,7 @@ func (h *streamHandler) Handle(chunkStreamID int, timestamp uint32, msg message.
 		return h.handleData(chunkStreamID, timestamp, msg)
 
 	case *message.CommandMessage:
-		return h.handleCommand(chunkStreamID, timestamp, msg)
+		return h.handleCommand(ctx, chunkStreamID, timestamp, msg)
 
 	case *message.SetChunkSize:
 		l.Infof("Handle SetChunkSize: Msg = %#v", msg)
@@ -166,6 +172,7 @@ func (h *streamHandler) handleData(
 }
 
 func (h *streamHandler) handleCommand(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	cmdMsg *message.CommandMessage,
@@ -198,7 +205,7 @@ func (h *streamHandler) handleCommand(
 		return err
 	}
 
-	err := h.handler.onCommand(chunkStreamID, timestamp, cmdMsg, value)
+	err := h.handler.onCommand(ctx, chunkStreamID, timestamp, cmdMsg, value)
 	if err == internal.ErrPassThroughMsg {
 		return h.stream.userHandler().OnUnknownCommandMessage(timestamp, cmdMsg)
 	}

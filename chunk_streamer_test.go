@@ -505,6 +505,8 @@ func BenchmarkStreamerMultipleChunkRead(b *testing.B) {
 	const chunkSize = 128
 	const payloadUnit = "test"
 
+	ctx := context.Background()
+
 	buf := bytes.NewBuffer(nil)
 	streamer := NewChunkStreamer(buf, buf, nil)
 
@@ -535,7 +537,7 @@ func BenchmarkStreamerMultipleChunkRead(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		r.Reset(buf.Bytes())
 
-		_, err := s.NewChunkReader()
+		_, err := s.NewChunkReader(ctx)
 		if err != nil {
 			b.Error(err)
 		}

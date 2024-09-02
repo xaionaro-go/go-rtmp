@@ -8,6 +8,7 @@
 package rtmp
 
 import (
+	"context"
 	"io"
 	"net"
 	"sync"
@@ -33,11 +34,15 @@ func NewServer(config *ServerConfig) *Server {
 	}
 }
 
-func (srv *Server) Serve(l net.Listener) error {
+func (srv *Server) Serve(
+	l net.Listener,
+) error {
 	if err := srv.registerListener(l); err != nil {
 		return errors.Wrap(err, "Already served")
 	}
 
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
 	defer l.Close()
 
 	for {
@@ -53,7 +58,7 @@ func (srv *Server) Serve(l net.Listener) error {
 			continue
 		}
 
-		go srv.handleConn(rwc)
+		go srv.handleConn(ctx, rwc)
 	}
 }
 
@@ -104,7 +109,10 @@ func (srv *Server) getDoneChLocked() chan struct{} {
 	return srv.doneCh
 }
 
-func (srv *Server) handleConn(conn net.Conn) {
+func (srv *Server) handleConn(
+	ctx context.Context,
+	conn net.Conn,
+) {
 	userConn, connConfig := srv.config.OnConnect(conn)
 
 	c := newConn(userConn, connConfig)
@@ -113,7 +121,7 @@ func (srv *Server) handleConn(conn net.Conn) {
 	}
 	defer sc.Close()
 
-	if err := sc.Serve(); err != nil {
+	if err := sc.Serve(ctx); err != nil {
 		if err == io.EOF {
 			c.logger.Infof("Server closed")
 			return

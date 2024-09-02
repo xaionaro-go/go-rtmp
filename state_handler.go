@@ -8,11 +8,28 @@
 package rtmp
 
 import (
+	"context"
+
 	"github.com/yutopp/go-rtmp/message"
 )
 
 type stateHandler interface {
-	onMessage(chunkStreamID int, timestamp uint32, msg message.Message) error
-	onData(chunkStreamID int, timestamp uint32, dataMsg *message.DataMessage, body interface{}) error
-	onCommand(chunkStreamID int, timestamp uint32, cmdMsg *message.CommandMessage, body interface{}) error
+	onMessage(
+		chunkStreamID int,
+		timestamp uint32,
+		msg message.Message,
+	) error
+	onData(
+		chunkStreamID int,
+		timestamp uint32,
+		dataMsg *message.DataMessage,
+		body interface{},
+	) error
+	onCommand(
+		ctx context.Context,
+		chunkStreamID int,
+		timestamp uint32,
+		cmdMsg *message.CommandMessage,
+		body interface{},
+	) error
 }

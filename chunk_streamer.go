@@ -48,7 +48,7 @@ type ChunkStreamer struct {
 	err  error
 	done chan struct{}
 
-	controlStreamWriter func(chunkStreamID int, timestamp uint32, msg message.Message) error
+	controlStreamWriter func(ctx context.Context, chunkStreamID int, timestamp uint32, msg message.Message) error
 
 	cacheBuffer []byte
 	config      *StreamControlStateConfig
@@ -94,8 +94,11 @@ func NewChunkStreamer(r io.Reader, w io.Writer, config *StreamControlStateConfig
 	return cs
 }
 
-func (cs *ChunkStreamer) Read(cmsg *ChunkMessage) (int, uint32, error) {
-	reader, err := cs.NewChunkReader()
+func (cs *ChunkStreamer) Read(
+	ctx context.Context,
+	cmsg *ChunkMessage,
+) (int, uint32, error) {
+	reader, err := cs.NewChunkReader(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -134,14 +137,16 @@ func (cs *ChunkStreamer) Write(
 	return cs.Sched(writer)
 }
 
-func (cs *ChunkStreamer) NewChunkReader() (*ChunkStreamReader, error) {
+func (cs *ChunkStreamer) NewChunkReader(
+	ctx context.Context,
+) (*ChunkStreamReader, error) {
 again:
 	reader, err := cs.readChunk()
 	if err != nil {
 		return nil, err
 	}
 	if cs.r.FragmentReadBytes() >= uint32(cs.peerState.ackWindowSize/2) { // TODO: fix size
-		if err := cs.sendAck(cs.r.TotalReadBytes()); err != nil {
+		if err := cs.sendAck(ctx, cs.r.TotalReadBytes()); err != nil {
 			return nil, err
 		}
 		cs.r.ResetFragmentReadBytes()
@@ -423,10 +428,13 @@ func (cs *ChunkStreamer) prepareChunkWriter(chunkStreamID int) (*ChunkStreamWrit
 	return writer, nil
 }
 
-func (cs *ChunkStreamer) sendAck(readBytes uint32) error {
+func (cs *ChunkStreamer) sendAck(
+	ctx context.Context,
+	readBytes uint32,
+) error {
 	cs.logger.Debugf("Sending Ack...: Bytes = %d", readBytes)
 	// TODO: fix timestamp
-	return cs.controlStreamWriter(ctrlMsgChunkStreamID, 0, &message.Ack{
+	return cs.controlStreamWriter(ctx, ctrlMsgChunkStreamID, 0, &message.Ack{
 		SequenceNumber: readBytes,
 	})
 }

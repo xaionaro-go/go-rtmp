@@ -8,6 +8,8 @@
 package rtmp
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/yutopp/go-rtmp/internal"
@@ -44,6 +46,7 @@ func (h *serverDataInactiveHandler) onData(
 }
 
 func (h *serverDataInactiveHandler) onCommand(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	cmdMsg *message.CommandMessage,
@@ -53,7 +56,7 @@ func (h *serverDataInactiveHandler) onCommand(
 
 	switch cmd := body.(type) {
 	case *message.NetStreamPublish:
-		l.Infof("Publisher is comming: %#v", cmd)
+		l.Infof("Publisher is coming: %#v", cmd)
 
 		streamCtx := &StreamContext{
 			StreamID: h.sh.stream.streamID,
@@ -63,7 +66,7 @@ func (h *serverDataInactiveHandler) onCommand(
 			result := h.newOnStatus(message.NetStreamOnStatusCodePublishFailed, "Publish failed.")
 
 			l.Infof("Reject a Publish request: Response = %#v, Err = %+v", result, err)
-			if err1 := h.sh.stream.NotifyStatus(chunkStreamID, timestamp, result); err1 != nil {
+			if err1 := h.sh.stream.NotifyStatus(ctx, chunkStreamID, timestamp, result); err1 != nil {
 				return errors.Wrapf(err, "Failed to reply response: Err = %+v", err1)
 			}
 
@@ -71,7 +74,7 @@ func (h *serverDataInactiveHandler) onCommand(
 		}
 
 		result := h.newOnStatus(message.NetStreamOnStatusCodePublishStart, "Publish succeeded.")
-		if err := h.sh.stream.NotifyStatus(chunkStreamID, timestamp, result); err != nil {
+		if err := h.sh.stream.NotifyStatus(ctx, chunkStreamID, timestamp, result); err != nil {
 			return err
 		}
 		l.Infof("Publisher accepted")
@@ -90,7 +93,7 @@ func (h *serverDataInactiveHandler) onCommand(
 			result := h.newOnStatus(message.NetStreamOnStatusCodePlayFailed, "Play failed.")
 
 			l.Infof("Reject a Play request: Response = %#v, Err = %+v", result, err)
-			if err1 := h.sh.stream.NotifyStatus(chunkStreamID, timestamp, result); err1 != nil {
+			if err1 := h.sh.stream.NotifyStatus(ctx, chunkStreamID, timestamp, result); err1 != nil {
 				return errors.Wrapf(err, "Failed to reply response: Err = %+v", err1)
 			}
 
@@ -98,7 +101,7 @@ func (h *serverDataInactiveHandler) onCommand(
 		}
 
 		result := h.newOnStatus(message.NetStreamOnStatusCodePlayStart, "Play succeeded.")
-		if err := h.sh.stream.NotifyStatus(chunkStreamID, timestamp, result); err != nil {
+		if err := h.sh.stream.NotifyStatus(ctx, chunkStreamID, timestamp, result); err != nil {
 			return err
 		}
 		l.Infof("Player accepted")

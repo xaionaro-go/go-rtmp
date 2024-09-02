@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/yutopp/go-rtmp"
@@ -21,18 +23,20 @@ func main() {
 	defer client.Close()
 	log.Infof("Client created")
 
-	if err := client.Connect(nil); err != nil {
+	ctx := context.Background()
+
+	if err := client.Connect(ctx, nil); err != nil {
 		log.Fatalf("Failed to connect: Err=%+v", err)
 	}
 	log.Infof("connected")
 
-	stream, err := client.CreateStream(nil, chunkSize)
+	stream, err := client.CreateStream(ctx, nil, chunkSize)
 	if err != nil {
 		log.Fatalf("Failed to create stream: Err=%+v", err)
 	}
 	defer stream.Close()
 
-	if err := stream.Publish(&rtmpmsg.NetStreamPublish{
+	if err := stream.Publish(ctx, &rtmpmsg.NetStreamPublish{
 		PublishingName: "testtesttesttest",
 		PublishingType: "live",
 	}); err != nil {

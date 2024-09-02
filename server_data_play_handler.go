@@ -8,6 +8,8 @@
 package rtmp
 
 import (
+	"context"
+
 	"github.com/yutopp/go-rtmp/internal"
 	"github.com/yutopp/go-rtmp/message"
 )
@@ -40,6 +42,7 @@ func (h *serverDataPlayHandler) onData(
 }
 
 func (h *serverDataPlayHandler) onCommand(
+	ctx context.Context,
 	chunkStreamID int,
 	timestamp uint32,
 	cmdMsg *message.CommandMessage,

@@ -141,7 +141,9 @@ func (c *Conn) Write(ctx context.Context, chunkStreamID int, timestamp uint32, c
 	return c.streamer.Write(ctx, chunkStreamID, timestamp, cmsg)
 }
 
-func (c *Conn) handleMessageLoop() (err error) {
+func (c *Conn) handleMessageLoop(
+	ctx context.Context,
+) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			errTmp, ok := r.(error)
@@ -152,30 +154,40 @@ func (c *Conn) handleMessageLoop() (err error) {
 		}
 	}()
 
-	return c.runHandleMessageLoop()
+	return c.runHandleMessageLoop(ctx)
 }
 
-func (c *Conn) runHandleMessageLoop() error {
+func (c *Conn) runHandleMessageLoop(
+	ctx context.Context,
+) error {
 	var cmsg ChunkMessage
 	for {
 		select {
 		case <-c.streamer.Done():
 			return c.streamer.Err()
 
+		case <-ctx.Done():
+			return ctx.Err()
+
 		default:
-			chunkStreamID, timestamp, err := c.streamer.Read(&cmsg)
+			chunkStreamID, timestamp, err := c.streamer.Read(ctx, &cmsg)
 			if err != nil {
 				return err
 			}
 
-			if err := c.handleMessage(chunkStreamID, timestamp, &cmsg); err != nil {
+			if err := c.handleMessage(ctx, chunkStreamID, timestamp, &cmsg); err != nil {
 				return err // Shutdown the connection
 			}
 		}
 	}
 }
 
-func (c *Conn) handleMessage(chunkStreamID int, timestamp uint32, cmsg *ChunkMessage) error {
+func (c *Conn) handleMessage(
+	ctx context.Context,
+	chunkStreamID int,
+	timestamp uint32,
+	cmsg *ChunkMessage,
+) error {
 	stream, err := c.streams.At(cmsg.StreamID)
 	if err != nil {
 		if c.config.IgnoreMessagesOnNotExistStream {
@@ -193,10 +205,10 @@ func (c *Conn) handleMessage(chunkStreamID int, timestamp uint32, cmsg *ChunkMes
 		return errors.Errorf("Specified stream is not created yet: StreamID = %d", cmsg.StreamID)
 	}
 
-	if err := stream.handle(chunkStreamID, timestamp, cmsg.Message); err != nil {
+	if err := stream.handle(ctx, chunkStreamID, timestamp, cmsg.Message); err != nil {
 		switch err := err.(type) {
 		case *message.UnknownDataBodyDecodeError, *message.UnknownCommandBodyDecodeError:
-			// Ignore unknown messsage body
+			// Ignore unknown message body
 			c.logger.Warnf("Ignored unknown message body: Err = %+v", err)
 			return nil
 		}

@@ -8,6 +8,7 @@
 package rtmp
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,8 @@ import (
 )
 
 func TestHandlerCallback(t *testing.T) {
+	ctx := context.Background()
+
 	b := &rwcMock{}
 
 	closer := make(chan struct{})
@@ -54,7 +57,7 @@ func TestHandlerCallback(t *testing.T) {
 		<-closer
 		sconn.Close()
 	}()
-	_ = sconn.Serve()
+	_ = sconn.Serve(ctx)
 }
 
 var _ Handler = (*testHandler)(nil)

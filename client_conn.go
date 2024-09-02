@@ -8,6 +8,7 @@
 package rtmp
 
 import (
+	"context"
 	"net"
 	"sync"
 
@@ -46,7 +47,7 @@ func newClientConnWithSetup(c net.Conn, config *ConnConfig) (*ClientConn, error)
 	cc := &ClientConn{
 		conn: conn,
 	}
-	go cc.startHandleMessageLoop()
+	go cc.startHandleMessageLoop(context.Background())
 
 	return cc, nil
 }
@@ -62,7 +63,10 @@ func (cc *ClientConn) LastError() error {
 	return cc.lastErr
 }
 
-func (cc *ClientConn) Connect(body *message.NetConnectionConnect) error {
+func (cc *ClientConn) Connect(
+	ctx context.Context,
+	body *message.NetConnectionConnect,
+) error {
 	if err := cc.controllable(); err != nil {
 		return err
 	}
@@ -72,7 +76,7 @@ func (cc *ClientConn) Connect(body *message.NetConnectionConnect) error {
 		return err
 	}
 
-	result, err := stream.Connect(body)
+	result, err := stream.Connect(ctx, body)
 	if err != nil {
 		return err // TODO: wrap an error
 	}
@@ -83,7 +87,11 @@ func (cc *ClientConn) Connect(body *message.NetConnectionConnect) error {
 	return nil
 }
 
-func (cc *ClientConn) CreateStream(body *message.NetConnectionCreateStream, chunkSize uint32) (*Stream, error) {
+func (cc *ClientConn) CreateStream(
+	ctx context.Context,
+	body *message.NetConnectionCreateStream,
+	chunkSize uint32,
+) (*Stream, error) {
 	if err := cc.controllable(); err != nil {
 		return nil, err
 	}
@@ -93,7 +101,7 @@ func (cc *ClientConn) CreateStream(body *message.NetConnectionCreateStream, chun
 		return nil, err
 	}
 
-	result, err := stream.CreateStream(body, chunkSize)
+	result, err := stream.CreateStream(ctx, body, chunkSize)
 	if err != nil {
 		return nil, err // TODO: wrap an error
 	}
@@ -108,7 +116,10 @@ func (cc *ClientConn) CreateStream(body *message.NetConnectionCreateStream, chun
 	return newStream, nil
 }
 
-func (cc *ClientConn) DeleteStream(body *message.NetStreamDeleteStream) error {
+func (cc *ClientConn) DeleteStream(
+	ctx context.Context,
+	body *message.NetStreamDeleteStream,
+) error {
 	if err := cc.controllable(); err != nil {
 		return err
 	}
@@ -123,15 +134,17 @@ func (cc *ClientConn) DeleteStream(body *message.NetStreamDeleteStream) error {
 		return err
 	}
 
-	if err := ctrlStream.DeleteStream(body); err != nil {
+	if err := ctrlStream.DeleteStream(ctx, body); err != nil {
 		return err
 	}
 
 	return cc.conn.streams.Delete(body.StreamID)
 }
 
-func (cc *ClientConn) startHandleMessageLoop() {
-	if err := cc.conn.handleMessageLoop(); err != nil {
+func (cc *ClientConn) startHandleMessageLoop(
+	ctx context.Context,
+) {
+	if err := cc.conn.handleMessageLoop(ctx); err != nil {
 		cc.setLastError(err)
 	}
 }
