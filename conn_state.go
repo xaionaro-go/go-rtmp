@@ -11,7 +11,7 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
-	"github.com/yutopp/go-rtmp/message"
+	"github.com/xaionaro-go/go-rtmp/message"
 )
 
 const DefaultChunkSize = 128

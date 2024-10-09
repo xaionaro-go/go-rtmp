@@ -14,8 +14,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/yutopp/go-rtmp/internal"
-	"github.com/yutopp/go-rtmp/message"
+	"github.com/xaionaro-go/go-rtmp/internal"
+	"github.com/xaionaro-go/go-rtmp/message"
 )
 
 type streamState int

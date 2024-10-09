@@ -6,9 +6,9 @@ import (
 	"log"
 
 	"github.com/pkg/errors"
+	"github.com/xaionaro-go/go-rtmp"
+	rtmpmsg "github.com/xaionaro-go/go-rtmp/message"
 	flvtag "github.com/yutopp/go-flv/tag"
-	"github.com/yutopp/go-rtmp"
-	rtmpmsg "github.com/yutopp/go-rtmp/message"
 )
 
 var _ rtmp.Handler = (*Handler)(nil)

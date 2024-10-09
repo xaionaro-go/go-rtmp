@@ -10,7 +10,7 @@ package rtmp
 import (
 	"context"
 
-	"github.com/yutopp/go-rtmp/message"
+	"github.com/xaionaro-go/go-rtmp/message"
 )
 
 type stateHandler interface {
